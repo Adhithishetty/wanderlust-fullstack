@@ -138,9 +138,7 @@ app.use((err,req,res,next)=>{
 });
 
 
-app.listen(8080,()=>{
-    console.log("Listening to port 8080...");
-});
-
+const PORT = process.env.PORT || 8080;  // use Render's assigned port, fallback to 8080 locally
+app.listen(PORT, () => console.log(`Listening to port ${PORT}...`));
 
 
