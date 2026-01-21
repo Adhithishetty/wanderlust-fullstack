@@ -41,41 +41,84 @@ module.exports.showListing = async (req,res,next)=>{
     res.render("listings/show.ejs",{ listing });
 };
 
-module.exports.createListing =async (req,res,next)=>{
+// module.exports.createListing =async (req,res,next)=>{
 
-    // if(!req.body.listing) {//this was not tackling validation errors properly
-    //     throw new ExpressError(400,"Send Valid Listing Data");
-    // }
+//     // if(!req.body.listing) {//this was not tackling validation errors properly
+//     //     throw new ExpressError(400,"Send Valid Listing Data");
+//     // }
 
-    async function forwardGeocodeGeoJSON(query) {
-        const url = `https://nominatim.openstreetmap.org/search?format=geojson&q=${encodeURIComponent(query)}&limit=1`;
+//     async function forwardGeocodeGeoJSON(query) {
+//         const url = `https://nominatim.openstreetmap.org/search?format=geojson&q=${encodeURIComponent(query)}&limit=1`;
 
-        const res = await fetch(url, {
-            headers: {
-            "User-Agent": "CollegeProject/1.0"
-            }
-        });
-        const geojson = await res.json();
-        return geojson;
+//         const res = await fetch(url, {
+//             headers: {
+//             "User-Agent": "CollegeProject/1.0"
+//             }
+//         });
+//         const geojson = await res.json();
+//         return geojson;
+//         }
+//         // usage
+//         let response = await forwardGeocodeGeoJSON(req.body.listing.location);
+
+
+//         let url = req.file.path;
+//         let filename = req.file.filename;
+
+//         const newListing = new Listing(req.body.listing);
+//         newListing.owner = req.user._id;
+//         newListing.image = {url,filename};
+
+//         newListing.geometry = response.features[0].geometry;
+
+//         let savelist = await newListing.save();
+//         console.log(savelist);
+//         req.flash("success","New Listing Created!");
+//         res.redirect("/listings");
+// } ;
+
+module.exports.createListing = async (req, res, next) => {
+    try {
+        async function forwardGeocodeGeoJSON(query) {
+            const url = `https://nominatim.openstreetmap.org/search?format=geojson&q=${encodeURIComponent(query)}&limit=1`;
+            const response = await fetch(url, {
+                headers: { "User-Agent": "CollegeProject/1.0" }
+            });
+            return await response.json();
         }
-        // usage
-        let response = await forwardGeocodeGeoJSON(req.body.listing.location);
 
+        if (!req.file) {
+            req.flash("error", "Image upload failed. Please try again.");
+            return res.redirect("/listings/new");
+        }
 
-        let url = req.file.path;
-        let filename = req.file.filename;
+        let geoResponse = await forwardGeocodeGeoJSON(req.body.listing.location);
+
+        if (!geoResponse.features || geoResponse.features.length === 0) {
+            req.flash("error", "Invalid location.");
+            return res.redirect("/listings/new");
+        }
 
         const newListing = new Listing(req.body.listing);
         newListing.owner = req.user._id;
-        newListing.image = {url,filename};
 
-        newListing.geometry = response.features[0].geometry;
+        newListing.image = {
+            url: req.file.path,
+            filename: req.file.filename
+        };
 
-        let savelist = await newListing.save();
-        console.log(savelist);
-        req.flash("success","New Listing Created!");
+        newListing.geometry = geoResponse.features[0].geometry;
+
+        await newListing.save();
+
+        req.flash("success", "New Listing Created!");
         res.redirect("/listings");
-} ;
+
+    } catch (err) {
+        next(err);
+    }
+};
+
 
 module.exports.renderEditForm = async (req,res,next)=>{
     let {id} = req.params;
